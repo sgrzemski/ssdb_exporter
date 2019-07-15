@@ -25,11 +25,11 @@ func init() {
 }
 
 var (
-	logLevel    log.Level = log.InfoLevel
-	bindAddr              = flag.String("bind-addr", ":9142", "bind address for the metrics server")
-	metricsPath           = flag.String("metrics-path", "/metrics", "path to metrics endpoint")
-	ssdbAddr              = flag.String("ssdb", "localhost:8888", "host:port for ssdb socket")
-	rawLevel              = flag.String("log-level", "info", "log level")
+	logLevel     log.Level = log.InfoLevel
+	bindAddr               = flag.String("bind-addr", ":9142", "bind address for the metrics server")
+	metricsPath            = flag.String("metrics-path", "/metrics", "path to metrics endpoint")
+	ssdbAddrList           = flag.String("ssdb-list", "localhost:8888", "host1:port1,host2:port2 for ssdb socket")
+	rawLevel               = flag.String("log-level", "info", "log level")
 )
 
 func main() {

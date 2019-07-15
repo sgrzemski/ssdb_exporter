@@ -190,9 +190,9 @@ func (c *Client) Close() error {
 	return c.sock.Close()
 }
 
-func sendSSDBCommand() ([]string, bool) {
-	ip := strings.Split(*ssdbAddr, ":")[0]
-	port, _ := strconv.Atoi(strings.Split(*ssdbAddr, ":")[1])
+func sendSSDBCommand(ssdbAddr string) ([]string, bool) {
+	ip := strings.Split(ssdbAddr, ":")[0]
+	port, _ := strconv.Atoi(strings.Split(ssdbAddr, ":")[1])
 	db, err := Connect(ip, port)
 	if err != nil {
 		fmt.Println(err)
