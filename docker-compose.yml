@@ -1,0 +1,12 @@
+version: "3.4"
+
+services:
+  ssdb_exporter:
+    image: sgrzemski/ssdb_exporter:latest
+    container_name: ssdb_exporter
+    network_mode: host
+    restart: always
+    ports:
+      - "9142:9142"
+    environment:
+      - "SSDB_LIST=ssdb_ip_add:ssdb_port"
