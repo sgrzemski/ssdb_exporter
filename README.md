@@ -1,6 +1,6 @@
 # Prometheus SSDB Exporter
 
-This repository is a fork of [kys1230/ssdb_exporter](https://github.com/kys1230/ssdb_exporter). I've just made some changes to enable succesfull dockerization. It has now two ways of configuration, which are described below.
+This repository is a fork of [kys1230/ssdb_exporter](https://github.com/kys1230/ssdb_exporter). I've just made some changes to enable succesfull dockerization. It has now two ways of configuration, which are described below. Replication status is also collected.
 
 ## Usage
 
