@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"github.com/prometheus/client_golang/prometheus"
+        log "github.com/sirupsen/logrus"
+
 )
 
 const (
@@ -46,6 +48,10 @@ func NewSSDBExporter() *SSDBExporter {
 				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "links"), "The number of connections to the current server.", []string{"addr"}, nil),
 				valType: prometheus.CounterValue,
 			},
+			"replication_status": SSDBMetric{
+   				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_status"), "Replication status for connected clients.", []string{"addr", "client"}, nil),
+                                valType: prometheus.CounterValue,
+		        },
 			"command_call_total": SSDBMetric{
 				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "command_call_total"), "Total command call.", []string{"addr", "command"}, nil),
 				valType: prometheus.CounterValue,
@@ -70,23 +76,61 @@ func (e *SSDBExporter) Describe(ch chan<- *prometheus.Desc) {
 
 }
 
-func parserSSDBInfo(data []string) (db_size, links string, call_total, time_wait, time_proc map[string]string, ok bool) {
+func searchSSDBData(data []string, x string) int {
+  for i, n := range data {
+    if x == n {
+      return i
+    }
+  }
+  return len(data)
+}
+
+func mulSearchSSDBData(data []string, x string) []int {
+  var inds []int
+  for i, n := range data {
+    if strings.Contains(n,x) {
+      inds = append(inds,i)
+    }
+  }
+  return inds
+}
+
+func parserSSDBInfo(data []string) (db_size, links string, rep_stat, call_total, time_wait, time_proc map[string]string, ok bool) {
 	ok = false
 	if len(data) == 0 {
-		return "", "", nil, nil, nil, ok
+		return "", "", nil, nil, nil, nil, ok
 	}
 
 	if data[0] == "ok" {
 		ok = true
 	}
+	for i := 0; i < len(data); i++ {
+		log.Debug("Index: ",i ," ",data[i])
+	}
+	db_size = data[searchSSDBData(data, "dbsize")+1]
+	links = data[searchSSDBData(data, "links")+1]
 
-	db_size = data[9]
-	links = data[5]
+	rep_stat = make(map[string]string)
+	var rep_client_indices = mulSearchSSDBData(data, "client")
+	for i,n := range rep_client_indices {
+	  var data = strings.Replace(data[n],"\n",",",-1)
+	  data = strings.Replace(data,"client","",-1)
+	  data = strings.Replace(data," ","",-1)
+	  var client = strings.Split(data,",")[0]
+	  var status = 0
+	  if strings.Split(strings.Split(data,",")[2],":")[1] == "SYNC" {
+	    status = 1
+          }
+	  rep_stat[client] = strconv.Itoa(status)
+	  _ = i
+	}
+
 	call_total = make(map[string]string)
 	time_wait = make(map[string]string)
 	time_proc = make(map[string]string)
 
-	for i := 14; i < len(data); i++ {
+	var data_start = searchSSDBData(data, "cmd.zincr")
+	for i := data_start; i < len(data); i++ {
 		command := data[i]
 		call := strings.Split(strings.Split(data[i+1], "\t")[0], " ")[1]
 		call_time_wait := strings.Split(strings.Split(data[i+1], "\t")[1], " ")[1]
@@ -96,7 +140,6 @@ func parserSSDBInfo(data []string) (db_size, links string, call_total, time_wait
 		time_proc[command] = call_time_proxy
 		i++
 	}
-
 	return
 }
 
@@ -114,23 +157,15 @@ func (e *SSDBExporter) Collect(ch chan<- prometheus.Metric) {
 				zk_status = 0
 			}
 
-			db_size, links, command_call_total, command_time_wait, command_time_proc, ok2 := parserSSDBInfo(data)
+			db_size, links, rep_stat, command_call_total, command_time_wait, command_time_proc, ok2 := parserSSDBInfo(data)
 			if !ok2 {
 				zk_status = 0
 			}
-			// "db_size": "xx",
-			// "links": "xx",
-			// "command_call_total": {
-			//    "command_x": "xxx",
-			// },
-			// "command_time_wait": {
-			//     "command_x": "xxx",
-			// },
-			// "command_time_proc": {
-			//     "command_x": "xxx",
-			// }
 			ch <- prometheus.MustNewConstMetric(e.metrics["db_size"].desc, e.metrics["db_size"].valType, parseFloatOrZero(db_size), addr)
 			ch <- prometheus.MustNewConstMetric(e.metrics["links"].desc, e.metrics["links"].valType, parseFloatOrZero(links), addr)
+			for k, v := range rep_stat {
+                                ch <- prometheus.MustNewConstMetric(e.metrics["replication_status"].desc, e.metrics["replication_status"].valType, parseFloatOrZero(v), addr, k)
+                        }
 			for k, v := range command_call_total {
 				ch <- prometheus.MustNewConstMetric(e.metrics["command_call_total"].desc, e.metrics["command_call_total"].valType, parseFloatOrZero(v), addr, k)
 			}
