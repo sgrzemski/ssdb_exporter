@@ -52,6 +52,10 @@ func NewSSDBExporter() *SSDBExporter {
    				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_status"), "Replication status for connected clients.", []string{"addr", "client"}, nil),
                                 valType: prometheus.CounterValue,
 		        },
+			"replication_type": SSDBMetric{
+                                desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_type"), "Replication type for adressed clients.", []string{"addr", "client"}, nil),
+                                valType: prometheus.CounterValue,
+                        },
 			"command_call_total": SSDBMetric{
 				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "command_call_total"), "Total command call.", []string{"addr", "command"}, nil),
 				valType: prometheus.CounterValue,
@@ -95,10 +99,10 @@ func mulSearchSSDBData(data []string, x string) []int {
   return inds
 }
 
-func parserSSDBInfo(data []string) (db_size, links string, rep_stat, call_total, time_wait, time_proc map[string]string, ok bool) {
+func parserSSDBInfo(data []string) (db_size, links string, rep_stat, rep_type, call_total, time_wait, time_proc map[string]string, ok bool) {
 	ok = false
 	if len(data) == 0 {
-		return "", "", nil, nil, nil, nil, ok
+		return "", "", nil, nil, nil, nil, nil, ok
 	}
 
 	if data[0] == "ok" {
@@ -111,18 +115,28 @@ func parserSSDBInfo(data []string) (db_size, links string, rep_stat, call_total,
 	links = data[searchSSDBData(data, "links")+1]
 
 	rep_stat = make(map[string]string)
+	rep_type = make(map[string]string)
 	var rep_client_indices = mulSearchSSDBData(data, "client")
-	for i,n := range rep_client_indices {
-	  var data = strings.Replace(data[n],"\n",",",-1)
-	  data = strings.Replace(data,"client","",-1)
-	  data = strings.Replace(data," ","",-1)
+	for _,n := range rep_client_indices {
+	  var data = strings.Replace(strings.Replace(strings.Replace(data[n],"\n",",",-1),"client","",-1)," ","",-1)
 	  var client = strings.Split(data,",")[0]
 	  var status = 0
+	  var s_rtype = strings.Split(strings.Split(data,",")[1],":")[1]
+	  var rtype = 0
+
+	  //replication status in sync
 	  if strings.Split(strings.Split(data,",")[2],":")[1] == "SYNC" {
 	    status = 1
           }
+          //replication type
+	  if s_rtype == "mirror" {
+            rtype = 2
+          } else if s_rtype == "sync" {
+	    rtype = 1
+          }
+
+          rep_type[client] = strconv.Itoa(rtype)
 	  rep_stat[client] = strconv.Itoa(status)
-	  _ = i
 	}
 
 	call_total = make(map[string]string)
@@ -157,12 +171,15 @@ func (e *SSDBExporter) Collect(ch chan<- prometheus.Metric) {
 				zk_status = 0
 			}
 
-			db_size, links, rep_stat, command_call_total, command_time_wait, command_time_proc, ok2 := parserSSDBInfo(data)
+			db_size, links, rep_stat, rep_type, command_call_total, command_time_wait, command_time_proc, ok2 := parserSSDBInfo(data)
 			if !ok2 {
 				zk_status = 0
 			}
 			ch <- prometheus.MustNewConstMetric(e.metrics["db_size"].desc, e.metrics["db_size"].valType, parseFloatOrZero(db_size), addr)
 			ch <- prometheus.MustNewConstMetric(e.metrics["links"].desc, e.metrics["links"].valType, parseFloatOrZero(links), addr)
+			for k, v := range rep_type {
+                                ch <- prometheus.MustNewConstMetric(e.metrics["replication_type"].desc, e.metrics["replication_type"].valType, parseFloatOrZero(v), addr, k)
+                        }
 			for k, v := range rep_stat {
                                 ch <- prometheus.MustNewConstMetric(e.metrics["replication_status"].desc, e.metrics["replication_status"].valType, parseFloatOrZero(v), addr, k)
                         }
