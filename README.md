@@ -16,3 +16,7 @@ The Prometheus SSDB Exporter use command line flags , as well as environment var
 - `LOG_LEVEL` - same as `-log-level`
 - `METRICS_PATH` - same as `-metrics-path`
 - `SSDB_LIST`  - same as `-ssdb-list`
+
+## Grafana Dashboard
+
+I've created some Grafana Dashboard to use with Prometheus. You can find it [here.](https://grafana.com/grafana/dashboards/11332)
