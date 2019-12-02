@@ -18,5 +18,5 @@ The Prometheus SSDB Exporter use command line flags , as well as environment var
 - `SSDB_LIST`  - same as `-ssdb-list`
 
 ## Grafana Dashboard
-
+![grafana_logo](https://blog.dsinf.net/wp-content/uploads/2019/03/AppLogo_Grafana.png "Grafana Logo")
 I've created some Grafana Dashboard to use with Prometheus. You can find it [here.](https://grafana.com/grafana/dashboards/11332)
