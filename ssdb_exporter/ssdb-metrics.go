@@ -1,12 +1,11 @@
 package main
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"sync"
-	"github.com/prometheus/client_golang/prometheus"
-        log "github.com/sirupsen/logrus"
-
 )
 
 const (
@@ -49,13 +48,13 @@ func NewSSDBExporter() *SSDBExporter {
 				valType: prometheus.CounterValue,
 			},
 			"replication_status": SSDBMetric{
-   				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_status"), "Replication status for connected clients.", []string{"addr", "client"}, nil),
-                                valType: prometheus.CounterValue,
-		        },
+				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_status"), "Replication status for connected clients.", []string{"addr", "client"}, nil),
+				valType: prometheus.CounterValue,
+			},
 			"replication_type": SSDBMetric{
-                                desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_type"), "Replication type for adressed clients.", []string{"addr", "client"}, nil),
-                                valType: prometheus.CounterValue,
-                        },
+				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "replication_type"), "Replication type for adressed clients.", []string{"addr", "client"}, nil),
+				valType: prometheus.CounterValue,
+			},
 			"command_call_total": SSDBMetric{
 				desc:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "command_call_total"), "Total command call.", []string{"addr", "command"}, nil),
 				valType: prometheus.CounterValue,
@@ -81,22 +80,22 @@ func (e *SSDBExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func searchSSDBData(data []string, x string) int {
-  for i, n := range data {
-    if x == n {
-      return i
-    }
-  }
-  return len(data)
+	for i, n := range data {
+		if x == n {
+			return i
+		}
+	}
+	return len(data)
 }
 
 func mulSearchSSDBData(data []string, x string) []int {
-  var inds []int
-  for i, n := range data {
-    if strings.Contains(n,x) {
-      inds = append(inds,i)
-    }
-  }
-  return inds
+	var inds []int
+	for i, n := range data {
+		if strings.Contains(n, x) {
+			inds = append(inds, i)
+		}
+	}
+	return inds
 }
 
 func parserSSDBInfo(data []string) (db_size, links string, rep_stat, rep_type, call_total, time_wait, time_proc map[string]string, ok bool) {
@@ -109,7 +108,7 @@ func parserSSDBInfo(data []string) (db_size, links string, rep_stat, rep_type, c
 		ok = true
 	}
 	for i := 0; i < len(data); i++ {
-		log.Debug("Index: ",i ," ",data[i])
+		log.Debug("Index: ", i, " ", data[i])
 	}
 	db_size = data[searchSSDBData(data, "dbsize")+1]
 	links = data[searchSSDBData(data, "links")+1]
@@ -117,26 +116,32 @@ func parserSSDBInfo(data []string) (db_size, links string, rep_stat, rep_type, c
 	rep_stat = make(map[string]string)
 	rep_type = make(map[string]string)
 	var rep_client_indices = mulSearchSSDBData(data, "client")
-	for _,n := range rep_client_indices {
-	  var data = strings.Replace(strings.Replace(strings.Replace(data[n],"\n",",",-1),"client","",-1)," ","",-1)
-	  var client = strings.Split(data,",")[0]
-	  var status = 0
-	  var s_rtype = strings.Split(strings.Split(data,",")[1],":")[1]
-	  var rtype = 0
+	for _, n := range rep_client_indices {
+		var data = strings.Replace(strings.Replace(strings.Replace(data[n], "\n", ",", -1), "client", "", -1), " ", "", -1)
+		var client = strings.Split(data, ",")[0]
+		var status = 0
+		var s_rtype = strings.Split(strings.Split(data, ",")[1], ":")[1]
+		var rtype = 0
 
-	  //replication status in sync
-	  if strings.Split(strings.Split(data,",")[2],":")[1] == "SYNC" {
-	    status = 1
-          }
-          //replication type
-	  if s_rtype == "mirror" {
-            rtype = 2
-          } else if s_rtype == "sync" {
-	    rtype = 1
-          }
+		//replication status
+		switch repl_status := strings.Split(strings.Split(data, ",")[2], ":")[1]; repl_status {
+		case "SYNC":
+			status = 1
+		case "OUT_OF_SYNC":
+			status = 2
+		case "COPY":
+			status = 3
+		}
 
-          rep_type[client] = strconv.Itoa(rtype)
-	  rep_stat[client] = strconv.Itoa(status)
+		//replication type
+		if s_rtype == "mirror" {
+			rtype = 2
+		} else if s_rtype == "sync" {
+			rtype = 1
+		}
+
+		rep_type[client] = strconv.Itoa(rtype)
+		rep_stat[client] = strconv.Itoa(status)
 	}
 
 	call_total = make(map[string]string)
@@ -178,11 +183,11 @@ func (e *SSDBExporter) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(e.metrics["db_size"].desc, e.metrics["db_size"].valType, parseFloatOrZero(db_size), addr)
 			ch <- prometheus.MustNewConstMetric(e.metrics["links"].desc, e.metrics["links"].valType, parseFloatOrZero(links), addr)
 			for k, v := range rep_type {
-                                ch <- prometheus.MustNewConstMetric(e.metrics["replication_type"].desc, e.metrics["replication_type"].valType, parseFloatOrZero(v), addr, k)
-                        }
+				ch <- prometheus.MustNewConstMetric(e.metrics["replication_type"].desc, e.metrics["replication_type"].valType, parseFloatOrZero(v), addr, k)
+			}
 			for k, v := range rep_stat {
-                                ch <- prometheus.MustNewConstMetric(e.metrics["replication_status"].desc, e.metrics["replication_status"].valType, parseFloatOrZero(v), addr, k)
-                        }
+				ch <- prometheus.MustNewConstMetric(e.metrics["replication_status"].desc, e.metrics["replication_status"].valType, parseFloatOrZero(v), addr, k)
+			}
 			for k, v := range command_call_total {
 				ch <- prometheus.MustNewConstMetric(e.metrics["command_call_total"].desc, e.metrics["command_call_total"].valType, parseFloatOrZero(v), addr, k)
 			}
