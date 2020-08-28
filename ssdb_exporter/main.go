@@ -64,25 +64,25 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getEnvVars() {
-  log.Debug("Loading environment variables")
-  var envSsdbAddrList = os.Getenv("SSDB_LIST")
-  if len(envSsdbAddrList) > 0 {
-    *ssdbAddrList = envSsdbAddrList
-    log.Debug("Loaded SSDB_LIST variable")
-  }
-  var envBindAddr = os.Getenv("BIND_ADDR")
-  if len(envBindAddr) > 0 {
-    *bindAddr = envBindAddr
-    log.Debug("Loaded BIND_ADDR variable")
-  }
-  var envMetricsPath = os.Getenv("METRICS_PATH")
-  if len(envMetricsPath) > 0 {
-    *metricsPath= envMetricsPath
-    log.Debug("Loaded METRICS_PATH variable")
-  }
-  var envLogLevel = os.Getenv("LOG_LEVEL")
-  if len(envLogLevel) > 0 {
-    *rawLevel = envLogLevel
-    log.Debug("Loaded LOG_LEVEL variable")
-  }
+	log.Debug("Loading environment variables")
+	var envSsdbAddrList = os.Getenv("SSDB_LIST")
+	if len(envSsdbAddrList) > 0 {
+		*ssdbAddrList = envSsdbAddrList
+		log.Debug("Loaded SSDB_LIST variable")
+	}
+	var envBindAddr = os.Getenv("BIND_ADDR")
+	if len(envBindAddr) > 0 {
+		*bindAddr = envBindAddr
+		log.Debug("Loaded BIND_ADDR variable")
+	}
+	var envMetricsPath = os.Getenv("METRICS_PATH")
+	if len(envMetricsPath) > 0 {
+		*metricsPath = envMetricsPath
+		log.Debug("Loaded METRICS_PATH variable")
+	}
+	var envLogLevel = os.Getenv("LOG_LEVEL")
+	if len(envLogLevel) > 0 {
+		*rawLevel = envLogLevel
+		log.Debug("Loaded LOG_LEVEL variable")
+	}
 }
